@@ -140,8 +140,7 @@ def parse(image_file, output_path):
 
     print(bottom_players)
 
-    match_id = base64.urlsafe_b64encode(
-        uuid.uuid3().bytes).rstrip(b'=').decode('ascii')
+    match_id = base64.urlsafe_b64encode(uuid.uuid4().bytes).rstrip(b'=').decode('ascii')
 
     print(os.getcwd())
     with open(output_path + 'output.csv', 'a+') as match_file:
