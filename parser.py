@@ -57,6 +57,13 @@ def thresholding(image):
 def invert_colors(image):
     return cv2.bitwise_not(image)
 
+def scale_image(image, height, width):
+    dim = (width, height) 
+    resized = cv2.resize(image, dim, interpolation = cv2.INTER_AREA) 
+    cv2.imshow('resized image', resized)
+    cv2.waitKey(0)
+    return resized
+
 def grab_data(image, X, Y, W, H, isNum, dataname=""):
     # --psm 6, 7
     custom_config = r'--oem 3 --psm 6 -c tessedit_char_blacklist=&@'
@@ -75,7 +82,7 @@ def isWinner(mine, other):
 
 
 def make_int(str_num):
-    return int(str_num.replace('o', '0').replace('a', '0').replace('O', '0').replace('l', '1').replace('L', '1'))
+    return int(str_num.replace('o', '0').replace('a', '0').replace('O', '0').replace('l', '1').replace('L', '1').replace('i', '1').replace('I', '1'))
 
 
 def match_user_name(name):
@@ -91,20 +98,24 @@ def match_user_name(name):
             f.write('\n' + name)
             return name
 
+def should_be_scaled(height, width):
+    return height>1458 and width >2592 and math.isclose(width/height, 1.77777, rel_tol=1e-5)
 
 def parse(image_file, output_path):
     image = cv2.imread(image_file)
 
     gray = get_grayscale(image)
-    # cv2.imshow('gray', gray)
-    # cv2.waitKey(0)
     thresh = thresholding(gray)
-    # cv2.imshow('thresh', thresh)
-    # cv2.waitKey(0)
     inverted = invert_colors(thresh)
     cv2.imshow('inverted_thresh', inverted)
     cv2.waitKey(0)
 
+    print(inverted.shape)
+    h, w = inverted.shape[0], inverted.shape[1]
+
+    if should_be_scaled(h,w) :
+        print("scaled down")
+        inverted = scale_image(inverted,1458,2592)
 
     correct=grab_data(inverted, 122, 67, 412, 61, False,"scoreboard").strip()
     print(correct)
@@ -122,7 +133,7 @@ def parse(image_file, output_path):
 
     top_players = []
     for x in range(10):
-        data = grab_data(inverted, 832, 447+(x*40), 1414, 38, False)
+        data = grab_data(inverted, 832, 447+(x*40), 1414, 38, False,"score")
         if data.strip():
             top_players.append(data.strip().rsplit(' ', 5))
         else:
