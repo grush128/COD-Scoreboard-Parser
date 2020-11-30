@@ -60,8 +60,8 @@ def invert_colors(image):
 def scale_image(image, height, width):
     dim = (width, height) 
     resized = cv2.resize(image, dim, interpolation = cv2.INTER_AREA) 
-    cv2.imshow('resized image', resized)
-    cv2.waitKey(0)
+    # cv2.imshow('resized image', resized)
+    # cv2.waitKey(0)
     return resized
 
 def grab_data(image, X, Y, W, H, isNum, dataname=""):
@@ -77,14 +77,14 @@ def grab_data(image, X, Y, W, H, isNum, dataname=""):
     return pytesseract.image_to_string(crop_img, config=custom_config)
 
 
-def isWinner(mine, other):
-    return str(int(mine.strip()) > int(other.strip()))
-
-
+#post processing for integers
 def make_int(str_num):
     return int(str_num.replace('o', '0').replace('a', '0').replace('O', '0').replace('l', '1').replace('L', '1').replace('i', '1').replace('I', '1'))
 
+def isWinner(mine, other):
+    return str(make_int(mine.strip()) > make_int(other.strip()))
 
+#post processing for usernames
 def match_user_name(name):
     if not os.path.exists('usernames.txt'):
         with open('usernames.txt', 'w'): pass
@@ -117,7 +117,7 @@ def parse(image_file, output_path):
         print("scaled down")
         inverted = scale_image(inverted,1458,2592)
 
-    correct=grab_data(inverted, 122, 67, 412, 61, False,"scoreboard").strip()
+    correct=grab_data(inverted, 122, 67, 412, 61, False,).strip()
     print(correct)
     if correct != "SCOREBOARD":
         return
@@ -133,7 +133,7 @@ def parse(image_file, output_path):
 
     top_players = []
     for x in range(10):
-        data = grab_data(inverted, 832, 447+(x*40), 1414, 38, False,"score")
+        data = grab_data(inverted, 832, 447+(x*40), 1414, 38, False,)
         if data.strip():
             top_players.append(data.strip().rsplit(' ', 5))
         else:
