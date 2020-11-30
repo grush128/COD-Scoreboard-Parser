@@ -7,6 +7,16 @@ pip install opencv-python
 ```
 
 
+
+Usage notes:
+- create an input directory
+- create an output directory
+- create a file named ```usernames.txt``` in the working directory
+  - Used to help correct mistakes in the names of players
+
+
+
+
 - [ ] Adjust to handle after match score screen
   - Incase the 'SCOREBOARD' screen is not capture process and alternative
 - [ ] Automatically find data locations
