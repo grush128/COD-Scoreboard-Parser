@@ -175,7 +175,7 @@ def parse(image_file, output_path):
     thresh = thresholding(gray)
     inverted = invert_colors(thresh)
     
-    print("Image Size: " + inverted.shape)
+    print(inverted.shape)
     h, w = inverted.shape[0], inverted.shape[1]
 
     if should_be_scaled(h,w) :
