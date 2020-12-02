@@ -1,10 +1,36 @@
 # COD-Scoreboard-Parser
 
+# Setup PC
+You have two options, run locally or run with docker
+
+## Local Setup
 ```
 pip install numpy
 pip install pytesseract
 pip install opencv-python
 ```
+
+## Docker Setup
+
+If using OSX, you need to install XQuartz so you can use the Python GUI with Docker
+
+[How to Use x11 and Docker](https://medium.com/@mreichelt/how-to-show-x11-windows-within-docker-on-mac-50759f4b65cb)
+
+## Building with Docker
+...
+docker build -t cod .
+...
+
+## Running Docker
+This script will run the GUI version of the container.
+...
+./run GUI
+...
+
+If you want to just run the parser without the GUI do:
+...
+./run /pathtoinputs_incontainer /pathtooutputs_incontainer
+...
 
 
 - [ ] Adjust to handle after match score screen

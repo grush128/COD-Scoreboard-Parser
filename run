@@ -1,0 +1,22 @@
+echo 'COD Parser'
+
+# Modify parameters based on platform we are building on top of
+if [ "$(uname)" == "Darwin" ]; then
+   ip=$(ifconfig en0 | grep inet | awk '$1=="inet" {print $2}')
+   xhost + $ip
+   xsession="-e DISPLAY=$ip:0 -v /tmp/.X11-unix:/tmp/.X11-unix"
+elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
+   xsession="-e DISPLAY=$DISPLAY -e XAUTHORITY=/tmp/.Xauthority -v $HOME/.Xauthority:/tmp/.Xauthority -v /tmp/.X11-unix:/tmp/.X11-unix"
+else
+   echo "Invalid Platform: " $(uname)
+   exit 1
+fi
+
+# Run container
+docker run -it --rm \
+  -P \
+  $xsession \
+  --env="_X11_NO_MITSHM=1" \
+  --name=cod \
+  -v $HOME:/home \
+  cod $1 $2
