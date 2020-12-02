@@ -72,10 +72,11 @@ def grab_data(image, X, Y, W, H, isNum, dataname=""):
         custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789:'
 
     crop_img = image[Y:Y+H, X:X+W]
+    
     #if dataname.strip():
-    cv2.imshow(dataname, crop_img)
-    cv2.waitKey(0)
-    print(pytesseract.image_to_string(crop_img, config=custom_config))
+    #cv2.imshow(dataname, crop_img)
+    #cv2.waitKey(0)
+    #print("Basic Crop: " + pytesseract.image_to_string(crop_img, config=custom_config))
     return pytesseract.image_to_string(crop_img, config=custom_config)
 
 
@@ -122,9 +123,6 @@ def should_be_scaled(height, width):
     
 def parse(image_file, output_path):
 
-    # width 2037
-    # height 1145
-
     # Constants (in % distance from 0,0 of image size)
     SCOREBOARD_X = 0.0491
     SCOREBOARD_Y = 0.0488
@@ -159,26 +157,24 @@ def parse(image_file, output_path):
     TOPPLAYER_SCORES_Y_BIG = 0.3057
     BOTPLAYER_SCORES_Y_BIG = 0.5965
     PLAYER_SCORES_W_BIG = 0.5430
-
+    
     # Read File and print out size
     image = cv2.imread(image_file)
     height, width, channels = image.shape
-    
+    print(height,width)
+        
     # Calculate location of "Big" Scoreboard
     scoreboard_x_scale = round(SCOREBOARD_X * width)
     scoreboard_y_scale = round(SCOREBOARD_Y * height)
     scoreboard_w_scale = round(SCOREBOARD_W * width)
     scoreboard_h_scale = round(SCOREBOARD_H * height)
-
+    
     # Invert a greyscale image
     gray = get_grayscale(image)
     thresh = thresholding(gray)
     inverted = invert_colors(thresh)
-    
-    print(inverted.shape)
-    h, w = inverted.shape[0], inverted.shape[1]
 
-    if should_be_scaled(h,w) :
+    if should_be_scaled(height,width) :
         print("scaled down")
         inverted = scale_image(inverted,1458,2592)
 
