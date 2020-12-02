@@ -76,7 +76,7 @@ def grab_data(image, X, Y, W, H, isNum, dataname=""):
     #if dataname.strip():
     #cv2.imshow(dataname, crop_img)
     #cv2.waitKey(0)
-    #print("Basic Crop: " + pytesseract.image_to_string(crop_img, config=custom_config))
+    print("Basic Crop: " + pytesseract.image_to_string(crop_img, config=custom_config))
     return pytesseract.image_to_string(crop_img, config=custom_config)
 
 
@@ -172,7 +172,22 @@ def parse(image_file, output_path):
     # Invert a greyscale image
     gray = get_grayscale(image)
     thresh = thresholding(gray)
-    inverted = invert_colors(thresh)
+    #inverted = invert_colors(thresh)
+    #cv2.imshow('inverted', inverted)
+    
+    # Remove dots
+    nlabels, labels, stats, centroids = cv2.connectedComponentsWithStats(thresh, 8, cv2.CV_32S)
+    sizes = stats[1:, -1] #get CC_STAT_AREA component
+    img2 = np.zeros((labels.shape), np.uint8)
+
+    for i in range(0, nlabels - 1):
+        if sizes[i] >= 8:   #filter small dotted regions
+            img2[labels == i + 1] = 255
+
+    inverted = cv2.bitwise_not(img2)
+
+    #cv2.imshow('final', inverted)
+    #cv2.waitKey(0)
 
     if should_be_scaled(height,width) :
         print("scaled down")
