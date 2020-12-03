@@ -51,22 +51,37 @@ import glob
 def get_grayscale(image):
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
+
 def thresholding(image):
+    # return cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 115, 1)
     return cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
 def invert_colors(image):
     return cv2.bitwise_not(image)
 
+def median_blur(image):
+    return cv2.medianBlur(image, 3)
+
+def bilateral_filter(image):
+    return cv2.bilateralFilter(image, 21,51,51)
+
 def scale_image(image, height, width):
-    dim = (width, height) 
-    resized = cv2.resize(image, dim, interpolation = cv2.INTER_AREA) 
-    # cv2.imshow('resized image', resized)
-    # cv2.waitKey(0)
+    dim = (width, height)
+    resized = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
     return resized
+
+def magic(image):
+    # smooth the image with alternative closing and opening
+    # with an enlarging kernel
+    morph = image.copy()
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    #morph = cv2.morphologyEx(morph, cv2.MORPH_OPEN, kernel)
+    morph = cv2.morphologyEx(morph, cv2.MORPH_CLOSE, kernel)
+    return  morph
 
 def grab_data(image, X, Y, W, H, isNum, dataname=""):
     # --psm 6, 7
-    custom_config = r'--oem 3 --psm 6 -c tessedit_char_blacklist=&@'
+    custom_config = r'--oem 3 --psm 6 -c tessedit_char_blacklist=&$.,@\"'
     if isNum:
         custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789:'
 
@@ -77,63 +92,78 @@ def grab_data(image, X, Y, W, H, isNum, dataname=""):
     return pytesseract.image_to_string(crop_img, config=custom_config)
 
 
-#post processing for integers
+# post processing for integers
 def make_int(str_num):
-    return int(str_num.replace('o', '0').replace('a', '0').replace('O', '0').replace('l', '1').replace('L', '1').replace('i', '1').replace('I', '1'))
+    return int(str_num.replace('S', '5').replace('o', '0').replace('a', '0').replace('O', '0').replace('l', '1').replace('L', '1').replace('i', '1').replace('I', '1').replace('V', '1'))
+
 
 def isWinner(mine, other):
     return str(make_int(mine.strip()) > make_int(other.strip()))
 
-#post processing for usernames
+# post processing for usernames
 def match_user_name(name):
     if not os.path.exists('usernames.txt'):
-        with open('usernames.txt', 'w'): pass
+        with open('usernames.txt', 'w'):
+            pass
     with open('usernames.txt', 'r+') as f:
         lines = f.read().splitlines()
         lines = [line.strip() for line in lines]
-        matches = get_close_matches(name, lines, n=1, cutoff=0.3)
+        matches = get_close_matches(name, lines, n=1, cutoff=0.2)
         if matches:
             return matches[0]
         else:
             f.write('\n' + name)
             return name
 
+
 def should_be_scaled(height, width):
-    return height>1458 and width >2592 and math.isclose(width/height, 1.77777, rel_tol=1e-5)
+    return height > 1458 and width > 2592 and math.isclose(width/height, 1.77777, rel_tol=1e-5)
+
 
 def parse(image_file, output_path):
+    print(image_file)
     image = cv2.imread(image_file)
 
-    gray = get_grayscale(image)
-    thresh = thresholding(gray)
-    inverted = invert_colors(thresh)
-    cv2.imshow('inverted_thresh', inverted)
-    cv2.waitKey(0)
+    image = bilateral_filter(image)
+    # cv2.imshow('bilateral_filter', image)
+    # cv2.waitKey(0)
 
-    print(inverted.shape)
-    h, w = inverted.shape[0], inverted.shape[1]
+    image = get_grayscale(image)
+    # cv2.imshow('gray', image)
+    # cv2.waitKey(0)
 
-    if should_be_scaled(h,w) :
+    image = thresholding(image)
+    # cv2.imshow('thresh', image)
+    # cv2.waitKey(0)
+
+    image = invert_colors(image)
+    # cv2.imshow('inverted_thresh', image)
+    # cv2.waitKey(0)
+
+    print(image.shape)
+    h, w = image.shape[0], image.shape[1]
+
+    if should_be_scaled(h, w):
         print("scaled down")
-        inverted = scale_image(inverted,1458,2592)
+        image = scale_image(image, 1458, 2592)
 
-    correct=grab_data(inverted, 122, 67, 412, 61, False,).strip()
+    correct = grab_data(image, 122, 67, 412, 61, False).strip()
     print(correct)
     if correct != "SCOREBOARD":
         return
 
-    top_score = grab_data(inverted, 560, 670, 192, 103, True).strip()
+    top_score = grab_data(image, 560, 670, 192, 103, True).strip()
     print(top_score)
-    bottom_score = grab_data(inverted, 554, 1110, 190, 103, True).strip()
+    bottom_score = grab_data(image, 554, 1110, 190, 103, True).strip()
     print(bottom_score)
-    match_map = grab_data(inverted, 941, 355, 491, 40, False,).strip()
+    match_map = grab_data(image, 941, 355, 491, 40, False).strip()
     print(match_map)
-    time = grab_data(inverted, 1779, 354, 481, 40, True).strip()
+    time = grab_data(image, 1779, 354, 481, 40, True).strip()
     print(time)
 
     top_players = []
     for x in range(10):
-        data = grab_data(inverted, 832, 447+(x*40), 1414, 38, False,)
+        data = grab_data(image, 832, 447+(x*40), 1414, 38, False,)
         if data.strip():
             top_players.append(data.strip().rsplit(' ', 5))
         else:
@@ -143,7 +173,7 @@ def parse(image_file, output_path):
 
     bottom_players = []
     for x in range(10):
-        data = grab_data(inverted, 832, 871+(x*40), 1414, 38, False)
+        data = grab_data(image, 832, 871+(x*40), 1414, 38, False)
         if data.strip():
             bottom_players.append(data.strip().rsplit(' ', 5))
         else:
@@ -151,7 +181,8 @@ def parse(image_file, output_path):
 
     print(bottom_players)
 
-    match_id = base64.urlsafe_b64encode(uuid.uuid4().bytes).rstrip(b'=').decode('ascii')
+    match_id = base64.urlsafe_b64encode(
+        uuid.uuid4().bytes).rstrip(b'=').decode('ascii')
 
     print(os.getcwd())
     with open(output_path + 'output.csv', 'a+') as match_file:
