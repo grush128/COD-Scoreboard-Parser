@@ -49,6 +49,16 @@ import glob
 import PySimpleGUI as sg
 import subprocess
 
+import pickle
+import os.path
+from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from bs4 import BeautifulSoup
+from apiclient import errors
+import datetime
+import time
+
 def get_grayscale(image):
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
@@ -299,6 +309,77 @@ def parse(image_file, output_path):
     # closing all open windows
     cv2.destroyAllWindows()
 
+def download_attachments(write_path):
+    SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
+    creds = None
+    # The file token.pickle stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first
+    # time.
+    if os.path.exists('token.pickle'):
+        with open('token.pickle', 'rb') as token:
+            creds = pickle.load(token)
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                'credentials.json', SCOPES)
+            # Cannot run "run_local_server" in docker...
+            # using run_console instead as page tries to take to localhost
+            # inside the docker container that is not accessible from
+            # Browser on the host
+            #creds = flow.run_local_server(port=49705)
+            creds = flow.run_console()
+        # Save the credentials for the next run
+        with open('/home/token.pickle', 'wb') as token:
+            pickle.dump(creds, token)
+
+    service = build('gmail', 'v1', credentials=creds)
+
+    # Call the Gmail API
+    results = service.users().messages().list(userId='me', labelIds=['INBOX'], q="is:unread").execute()
+    messages = results.get('messages')
+    
+    if not messages:
+        print("No new messages")
+    else:
+        # iterate through all the messages
+        message_count = 0
+        for msg in messages:
+            message_count = message_count + 1
+            # Get the message from its id
+            txt = service.users().messages().get(userId='me', id=msg['id']).execute()
+      
+            # Use try-except to avoid any Errors
+            try:
+                # Get value of 'payload' from dictionary 'txt'
+                payload = txt['payload']
+                headers = payload['headers']
+                internalDate = txt['internalDate']
+
+                for part in txt['payload']['parts']:
+                    if part['filename']:
+                        if 'data' in part['body']:
+                            data = part['body']['data']
+                        else:
+                            att_id = part['body']['attachmentId']
+                            att = service.users().messages().attachments().get(userId='me', messageId='id',id=att_id).execute()
+                            data = att['data']
+                        path = write_path + internalDate + part['filename']
+                        file_data = base64.urlsafe_b64decode(data.encode('UTF-8'))
+
+                        with open(path, 'wb') as f:
+                            f.write(file_data)
+                            
+            except errors.HttpError as error:
+                print("An error occurred: %s' % error")
+            
+        # Remove UNREAD as a label so we dont download it again
+        service.users().messages().modify(userId='me', id=msg['id'],body={'removeLabelIds': ['UNREAD']}).execute()
+        print("Downloaded " + str(message_count) + " messages.")
+        
+            
 def launch_gui():
     # Create GUI to chose image file path
 
@@ -316,6 +397,11 @@ def launch_gui():
         [
             sg.Listbox(
                 values=[], enable_events=True, size=(40, 20), key="-FILE LIST-"
+            )
+        ],
+        [
+            sg.Button(
+                "Download Photos from Gmail", enable_events=True, size=(25, 1), key="-DL-"
             )
         ],
         [
@@ -404,6 +490,13 @@ def launch_gui():
 # Decide if we should launch GUI or run as a script
 if sys.argv[1] == "GUI":
     launch_gui()
+elif sys.argv[1] == "DL":
+    if not sys.argv[2]:
+        path = "/home"
+    else:
+        path = sys.argv[2]
+    download_attachments(path)
+# just run basic parser through commandline
 else:
     input_path = sys.argv[1]
     output_path = sys.argv[2]

@@ -18,5 +18,6 @@ docker run -it --rm \
   $xsession \
   --env="_X11_NO_MITSHM=1" \
   --name=cod \
+  --net=host \
   -v $HOME:/home \
   cod $1 $2
