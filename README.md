@@ -4,11 +4,7 @@
 You have two options, run locally or run with docker
 
 ## Local Setup
-```
-pip install numpy
-pip install pytesseract
-pip install opencv-python
-```
+If you want to just use your host to run everything, first do a pip install on all the libraries in the requirements.txt file.
 
 ## Docker Setup
 
@@ -50,7 +46,7 @@ If you want to just run the parser without the GUI do... the paths are relative 
 
 if you want to just download the latest unread messages from gmail
 ...
-./run DL /pathtooutputs_incontainer
+./run DL <UNREAD/ALL> /pathtoinputs_incontainer
 ...
 
 

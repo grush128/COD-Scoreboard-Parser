@@ -58,6 +58,8 @@ from bs4 import BeautifulSoup
 from apiclient import errors
 import datetime
 import time
+from PIL import Image, ImageTk
+import io
 
 def get_grayscale(image):
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -309,7 +311,15 @@ def parse(image_file, output_path):
     # closing all open windows
     cv2.destroyAllWindows()
 
-def download_attachments(write_path):
+# Download attachments from Gmail msgs... either READ, UNREAD or ALL msgs
+def download_attachments(write_path,type):
+    
+    layout = [
+        [
+            sg.Text("Downloading attachments...", key="-DOWNLOAD-"),
+        ],
+    ]
+        
     SCOPES = ['https://www.googleapis.com/auth/gmail.modify']
     creds = None
     # The file token.pickle stores the user's access and refresh tokens, and is
@@ -336,22 +346,38 @@ def download_attachments(write_path):
             pickle.dump(creds, token)
 
     service = build('gmail', 'v1', credentials=creds)
-
-    # Call the Gmail API
-    results = service.users().messages().list(userId='me', labelIds=['INBOX'], q="is:unread").execute()
+    
+    # Get messages from GMAIL
+    if type != "ALL":
+        results = service.users().messages().list(userId='me', labelIds=['INBOX'], q=type).execute()
+    else:
+        results = service.users().messages().list(userId='me', labelIds=['INBOX']).execute()
+        
     messages = results.get('messages')
     
+    # Count Messagse
+    message_count = 0;
+    for msg in messages:
+        message_count = message_count + 1
+        
     if not messages:
         print("No new messages")
     else:
+        window = sg.Window("Downloading Attachments", layout)
+        event, values = window.Read(timeout=10) # must call after starting window
+            
+        print("Found " + str(message_count) + " messages." )
         # iterate through all the messages
-        message_count = 0
+        download_count = 0
         for msg in messages:
-            message_count = message_count + 1
+        
+            if download_count == 0:
+                print("Download " + type)
+                print("Downloading messages to " + write_path)
+                
             # Get the message from its id
             txt = service.users().messages().get(userId='me', id=msg['id']).execute()
-      
-            # Use try-except to avoid any Errors
+          
             try:
                 # Get value of 'payload' from dictionary 'txt'
                 payload = txt['payload']
@@ -360,26 +386,59 @@ def download_attachments(write_path):
 
                 for part in txt['payload']['parts']:
                     if part['filename']:
+                        download_count = download_count + 1
+                        window["-DOWNLOAD-"].update("Downloading " + str(download_count) + " of " + str(message_count))
+                        event, values = window.Read(timeout=10)
+                        if event == sg.WINDOW_CLOSED or event == 'Quit':
+                            break
                         if 'data' in part['body']:
                             data = part['body']['data']
                         else:
                             att_id = part['body']['attachmentId']
                             att = service.users().messages().attachments().get(userId='me', messageId='id',id=att_id).execute()
                             data = att['data']
-                        path = write_path + internalDate + part['filename']
+                        path = write_path + "/" + internalDate + "-" + part['filename']
+                        print("Downloading... " + path)
                         file_data = base64.urlsafe_b64decode(data.encode('UTF-8'))
 
                         with open(path, 'wb') as f:
                             f.write(file_data)
-                            
+                                
+                # Remove UNREAD as a label so we dont download it again
+                service.users().messages().modify(userId='me', id=msg['id'],body={'removeLabelIds': ['UNREAD']}).execute()
+                    
             except errors.HttpError as error:
                 print("An error occurred: %s' % error")
-            
-        # Remove UNREAD as a label so we dont download it again
-        service.users().messages().modify(userId='me', id=msg['id'],body={'removeLabelIds': ['UNREAD']}).execute()
-        print("Downloaded " + str(message_count) + " messages.")
+                
+        print("Downloaded " + str(download_count) + " messages.")
+        window.close()
         
-            
+
+def make_file_list_inputs(window, values):
+    input_path = values["-FOLDERIN-"]
+    try:
+        # Get list of files in folder
+        file_list = os.listdir(input_path)
+    except:
+        file_list = []
+
+    fnames = [
+        f
+        for f in file_list
+        if os.path.isfile(os.path.join(input_path, f))
+        and f.lower().endswith((".png", ".gif"))
+    ]
+    window["-FILE LIST-"].update(fnames)
+
+# Return image and scale down if necessary
+def get_img_data(f, maxsize=(800, 650)):
+    img = Image.open(f)
+    img.thumbnail(maxsize)
+    bio = io.BytesIO()
+    img.save(bio, format="PNG")
+    del img
+    return bio.getvalue()
+    
 def launch_gui():
     # Create GUI to chose image file path
 
@@ -401,8 +460,12 @@ def launch_gui():
         ],
         [
             sg.Button(
-                "Download Photos from Gmail", enable_events=True, size=(25, 1), key="-DL-"
+                "Download Gmail Photos", enable_events=True, size=(25, 1), key="-DL-"
             )
+        ],
+        [
+            sg.Radio('Unread Emails', "RADIO1", default=True, key="-UNREAD-"),
+            sg.Radio('All Emails', "RADIO1", default=False, key="-ALL-"),
         ],
         [
             sg.Button(
@@ -413,8 +476,8 @@ def launch_gui():
 
     # For now will only show the name of the file that was chosen
     image_viewer_column = [
-        [sg.Text("Choose an image from list on left:")],
-        [sg.Text(size=(40, 1), key="-TOUT-")],
+        [sg.Text("Choose an image from list on left for thumbnail preview:")],
+        [sg.Text(size=(80, 1), key="-TOUT-")],
         [sg.Image(key="-IMAGE-")],
     ]
 
@@ -431,32 +494,20 @@ def launch_gui():
     window = sg.Window("COD Scoreboard Parser", layout)
 
     while True:
-        event, values = window.read()
+        event, values = window.read(100)
         if event == "Exit" or event == sg.WIN_CLOSED:
             break
         # Folder name was filled in, make a list of files in the folder
         if event == "-FOLDERIN-":
-            input_path = values["-FOLDERIN-"]
-            try:
-                # Get list of files in folder
-                file_list = os.listdir(input_path)
-            except:
-                file_list = []
-
-            fnames = [
-                f
-                for f in file_list
-                if os.path.isfile(os.path.join(input_path, f))
-                and f.lower().endswith((".png", ".gif"))
-            ]
-            window["-FILE LIST-"].update(fnames)
+            make_file_list_inputs(window, values)
+            
         elif event == "-FILE LIST-":  # A file was chosen from the listbox
             try:
                 filename = os.path.join(
                     values["-FOLDERIN-"], values["-FILE LIST-"][0]
                 )
                 window["-TOUT-"].update(filename)
-                window["-IMAGE-"].update(filename=filename)
+                window["-IMAGE-"].update(data=get_img_data(filename))
             except:
                 pass
         elif event == "-PARSE-":  # Parse Files
@@ -483,7 +534,18 @@ def launch_gui():
                     filename = input_path + "/" + file
                     print("Parse file: " + filename)
                     parse(filename, output_path)
-    
+        elif event == "-DL-": # Download photos from gmail
+            input_path = values["-FOLDERIN-"]
+            if not input_path:
+                input_path = "/home"
+            print("Downloading attachments to input_path: " + input_path)
+            if values["-UNREAD-"] == True:
+                type = "is:unread"
+            elif values["-ALL-"] == True:
+                type = "ALL"
+            download_attachments(input_path,type)
+            make_file_list_inputs(window, values)
+
     # We exited... close
     window.close()
 
@@ -492,10 +554,16 @@ if sys.argv[1] == "GUI":
     launch_gui()
 elif sys.argv[1] == "DL":
     if not sys.argv[2]:
-        path = "/home"
+        type = "ALL"
+        print("Defaulting to download ALL messages")
     else:
-        path = sys.argv[2]
-    download_attachments(path)
+        type = sys.argv[2]
+    if not sys.argv[3]:
+        type = "/home"
+        print("Defaulting to save files to $HOME")
+    else:
+        path = sys.argv[3]
+    download_attachments(path, type)
 # just run basic parser through commandline
 else:
     input_path = sys.argv[1]
