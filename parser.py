@@ -477,7 +477,7 @@ def stat_page():
             sg.Text("K/D: ", size=(10,1)), sg.Text("", size=(20,1), key="-KD-"),
         ],
         [
-            sg.Text("Fav Map: ", size=(10,1)), sg.Text("", key="-FAVMAP-"), sg.Text("Worst Map:", size=(10,1)), sg.Text("", key="-WMAP-"),
+            sg.Text("Fav Map: ", size=(10,1)), sg.Text("", size=(20,1), key="-FAVMAP-"), sg.Text("Worst Map:", size=(10,1)), sg.Text("", size=(20,1), key="-WMAP-"),
         ],
     ]
     
@@ -507,7 +507,6 @@ def stat_page():
         elif event == "-INPUTFILE-":
             input_file = values["-INPUTFILE-"]
 
-            
             with open(input_file, 'r') as csvfile:
                 mycsv = csv.reader(csvfile)
                 mycsv = list(mycsv)
