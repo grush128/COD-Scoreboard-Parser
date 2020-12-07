@@ -1,4 +1,17 @@
 # COD-Scoreboard-Parser
+Like many COD fans, we started to play a lot of the new gunfight mode on Modern Warfare. Unfortunately, the online multiplayer just supports 2v2 or 3v3 teams... so we started playing private matches with several of our friends. 
+One day, one of our friends thought it would be cool if we could collect our stats cumulatively. So that brings us to this project...
+
+Flow:
+- Take screenshot on xbox of scoreboard
+- Upload to Gmail
+- Run cronjob daily to:
+    - Download attachments from unread mail on dedicated gmail account for gunfight screenshots
+    - Parse photos for stats
+    - Upload stats to online database
+- Have our friends go online to look up their stats
+
+Eventually we believe we can add some machine learning algorithms on the data to see if we can predict who would win with specific combos of teams on certain stages.
 
 # Setup PC
 You have two options, run locally or run with docker
@@ -58,3 +71,7 @@ if you want to just download the latest unread messages from gmail
   - A very clear '7' is not being recognized
 - [ ] Handle differnt resolutions
   - Screen shots dont appear to be the same resolution when captured
+- [ ] Handle the smaller scoreboard
+- [ ] Save data to an online database
+- [ ] Create front end webpage for others to come and view stats
+- [ ] Integrate with machine learning to predict what team should win

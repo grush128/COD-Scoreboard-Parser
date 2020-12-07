@@ -46,20 +46,17 @@ from difflib import get_close_matches
 import sys
 import os
 import glob
+import io
 import PySimpleGUI as sg
 import subprocess
-
 import pickle
 import os.path
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
-from bs4 import BeautifulSoup
 from apiclient import errors
-import datetime
-import time
 from PIL import Image, ImageTk
-import io
+from csv import reader
 
 def get_grayscale(image):
     return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -438,6 +435,117 @@ def get_img_data(f, maxsize=(800, 650)):
     img.save(bio, format="PNG")
     del img
     return bio.getvalue()
+
+def stat_page():
+    
+    user_list_column = [
+        [
+            sg.Text("Select Input File"),
+            sg.In(size=(25, 1), enable_events=True, key="-INPUTFILE-"),
+            sg.FileBrowse(initial_folder="/home"),
+        ],
+        [
+            sg.Text("Select User:")
+        ],
+        [
+            sg.Listbox(
+                values=[], enable_events=True, size=(40, 20), key="-USER LIST-"
+            )
+        ],
+    ]
+
+    user_stats_column = [
+        [
+            sg.Text("Most Wins: ", size=(10,1)), sg.Text("", size=(20,1), key="-MOSTWINS-"),sg.Text("Least Wins: ", size=(10,1)), sg.Text("", size=(20,1), key="-LEASTWINS-"),
+        ],
+        [
+            sg.Text("Most Kills: ", size=(10,1)), sg.Text("", size=(20,1), key="-MOSTKILLS-"),sg.Text("Least Kills: ", size=(10,1)), sg.Text("", size=(20,1), key="-LEASTKILLS-"),
+        ],
+        [
+            sg.Text("Best KD: ", size=(10,1)), sg.Text("", size=(20,1), key="-BESTKD-"),sg.Text("Worst KD: "), sg.Text("", size=(20,1), key="-WORSTKD-"),
+        ],
+        [
+            sg.Text("-------------------------------------------------------------------------"),
+        ],
+        [
+            sg.Text("Kills: ", size=(10,1)), sg.Text("", size=(20,1), key="-KILLS-"), sg.Text("Deaths:", size=(10,1)), sg.Text("", size=(20,1), key="-DEATHS-"),
+        ],
+        [
+            sg.Text("Wins: ", size=(10,1)), sg.Text("", size=(20,1), key="-WINS-"), sg.Text("Losses:", size=(10,1)), sg.Text("", size=(20,1), key="-LOSSES-"),
+        ],
+        [
+            sg.Text("K/D: ", size=(10,1)), sg.Text("", size=(20,1), key="-KD-"),
+        ],
+        [
+            sg.Text("Fav Map: ", size=(10,1)), sg.Text("", key="-FAVMAP-"), sg.Text("Worst Map:", size=(10,1)), sg.Text("", key="-WMAP-"),
+        ],
+    ]
+    
+    layout = [
+        [
+            sg.Column(user_list_column),
+            sg.VSeperator(),
+            sg.Column(user_stats_column),
+        ]
+    ]
+    
+    # Create the window
+    window = sg.Window("COD Stats", layout)
+
+    # Data Storage for Stats
+    players = []
+    kills = dict([])
+    deaths = dict([])
+    kd = dict([])
+    wins = dict([])
+    losses = dict([])
+        
+    while True:
+        event, values = window.read()
+        if event == "Exit" or event == sg.WIN_CLOSED:
+            break
+        elif event == "-INPUTFILE-":
+            input_file = values["-INPUTFILE-"]
+
+            
+            with open(input_file, 'r') as csvfile:
+                mycsv = csv.reader(csvfile)
+                mycsv = list(mycsv)
+    
+                for row in mycsv:
+                    player = row[0]
+                    if player not in players:
+                        players.append(player)
+                        kills[player] = 0
+                        deaths[player] = 0
+                        kd[player] = 0
+                        wins[player] = 0
+                        losses[player] = 0
+                    kills[player] = kills[player] + int(row[10])
+                    deaths[player] = kills[player] + int(row[11])
+                    kd[player] = kills[player]/deaths[player]
+                    if row[3] == "TRUE":
+                        wins[player] = wins[player] + 1
+                    if row[3] == "FALSE":
+                        losses[player] = losses[player] + 1
+            
+            most_kills_player = max(kills, key=kills.get) #returns index of player with most kills
+            most_kills_num = kills[most_kills_player]
+            window["-MOSTKILLS-"].update(most_kills_player + ": " + str(most_kills_num))
+            
+            least_kills_player = min(kills, key=kills.get) #returns index of player with most kills
+            least_kills_num = kills[least_kills_player]
+            window["-LEASTKILLS-"].update(least_kills_player + ": " + str(least_kills_num))
+            
+            window["-USER LIST-"].update(players)
+        elif event == "-USER LIST-":
+            # Update Individual Stats when player selected
+            player = values["-USER LIST-"][0]
+            window["-KILLS-"].update(kills[player])
+            window["-DEATHS-"].update(deaths[player])
+            window["-KD-"].update("%.2f" % kd[player])
+            window["-WINS-"].update(wins[player])
+            window["-LOSSES-"].update(losses[player])
     
 def launch_gui():
     # Create GUI to chose image file path
@@ -459,17 +567,22 @@ def launch_gui():
             )
         ],
         [
-            sg.Button(
-                "Download Gmail Photos", enable_events=True, size=(25, 1), key="-DL-"
-            )
-        ],
-        [
             sg.Radio('Unread Emails', "RADIO1", default=True, key="-UNREAD-"),
             sg.Radio('All Emails', "RADIO1", default=False, key="-ALL-"),
         ],
         [
             sg.Button(
+                "Download Gmail Photos", enable_events=True, size=(25, 1), key="-DL-"
+            )
+        ],
+        [
+            sg.Button(
                 "Parse Photos", enable_events=True, size=(25, 1), key="-PARSE-"
+            )
+        ],
+        [
+            sg.Button(
+                "Stat Form", enable_events=True, size=(25,1), key="-STATS-"
             )
         ],
     ]
@@ -494,7 +607,7 @@ def launch_gui():
     window = sg.Window("COD Scoreboard Parser", layout)
 
     while True:
-        event, values = window.read(100)
+        event, values = window.read()
         if event == "Exit" or event == sg.WIN_CLOSED:
             break
         # Folder name was filled in, make a list of files in the folder
@@ -545,6 +658,8 @@ def launch_gui():
                 type = "ALL"
             download_attachments(input_path,type)
             make_file_list_inputs(window, values)
+        elif event == "-STATS-":
+            stat_page()
 
     # We exited... close
     window.close()
