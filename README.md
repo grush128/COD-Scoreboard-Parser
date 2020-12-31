@@ -25,6 +25,8 @@ If using OSX, you need to install XQuartz so you can use the Python GUI with Doc
 
 [How to Use x11 and Docker](https://medium.com/@mreichelt/how-to-show-x11-windows-within-docker-on-mac-50759f4b65cb)
 
+[ ] - Add link for windows docker/GUI integration
+
 ## GMAIL Setup
 
 There is a feature to download all the unread email attachments (in our example, we have an email dedicated to screenshots from Xbox). Before you run this feature....
@@ -62,7 +64,7 @@ if you want to just download the latest unread messages from gmail
 ./run DL <UNREAD/ALL> /pathtoinputs_incontainer
 ...
 
-
+# TODO
 - [ ] Adjust to handle after match score screen
   - Incase the 'SCOREBOARD' screen is not capture process and alternative
 - [ ] Automatically find data locations
@@ -75,3 +77,7 @@ if you want to just download the latest unread messages from gmail
 - [ ] Save data to an online database
 - [ ] Create front end webpage for others to come and view stats
 - [ ] Integrate with machine learning to predict what team should win
+- [ ] True skill ranking (with and without teams)
+- [ ] Add ranking to website
+- [ ] Incorporate "bots" (Pull scores... and recognize its a bot)
+- [ ] Add xbox REST APIs to help take or send screenshots to gmail
